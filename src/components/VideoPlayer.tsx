@@ -24,7 +24,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({ url, clas
 
     const playerConfig: any = {
         youtube: {
-            playerVars: { showinfo: 0, controls: 1, modestbranding: 1, rel: 0 }
+            playerVars: { showinfo: 0, controls: 1, modestbranding: 1, rel: 0, origin: window.location.origin }
         }
     };
 

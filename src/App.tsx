@@ -166,7 +166,7 @@ function App() {
           >
             <VideoPlayer
               ref={playerRef}
-              url="https://www.youtube.com/watch?v=LeXDoSiVPq0"
+              url="https://www.youtube.com/watch?v=OzY2r2JDBO0"
               playing={isPlaying}
             />
 

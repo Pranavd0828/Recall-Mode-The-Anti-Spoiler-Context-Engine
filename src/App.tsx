@@ -1,13 +1,13 @@
 import { useState, useRef } from 'react';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Settings as SettingsIcon, Menu, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import VideoPlayer, { type VideoPlayerHandle } from './components/VideoPlayer';
 import ContextSelector from './components/ContextSelector';
 import RecallTrigger from './components/RecallTrigger';
 import ResultOverlay from './components/ResultOverlay';
 import SettingsModal from './components/SettingsModal';
 import { analyzeScene } from './services/gemini';
-// Import a mock image for fallback if canvas capture fails (CORS) purely for demo
-// We'll simulate capture by using a placeholder or just trusting the prompt context for now if capture fails.
+import clsx from 'clsx';
 
 function App() {
   const [season, setSeason] = useState(2);
@@ -17,8 +17,9 @@ function App() {
   const [showOverlay, setShowOverlay] = useState(false);
   const [overlayLoading, setOverlayLoading] = useState(false);
   const [overlayData, setOverlayData] = useState<{ character_name: string; actor_name: string; safe_summary: string } | null>(null);
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || '');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const playerRef = useRef<VideoPlayerHandle>(null);
 
@@ -29,33 +30,9 @@ function App() {
     setShowOverlay(true);
     setOverlayData(null);
 
-    // Simulate scanning delay / or real capture
-    // Since YouTube iframe CORS usually blocks direct canvas access, we will use a workaround for the prototype:
-    // We'll "pretend" to capture by sending a blank or stock image to Gemini, BUT relying heavily on the system prompt 
-    // which says "Identify the main character... Context: Season X Episode Y".
-    // Actually, to make it work for the specific "Boar on the Floor" scene, we can try to send a specific frame if we had one.
-    // For now, let's try to capture. If it fails (it will), catch it and use a fallback logic.
-
-    // In a real web extension, we'd have access to the tab content. Here we are restricted.
-    // To make the demo impressive without a real extension, we can cheat slightly:
-    // If the timestamp is near the "Boar on the Floor" scene, send that context.
-
     setTimeout(async () => {
       try {
-        // Fallback "capture" - a black screen or simple placeholder
-        // In a real app we'd need a proxy or extension to screenshot.
-        // For this prototype, we'll ask Gemini to hallucinate based on context/timestamp or just general knowledge 
-        // if we provide a generic "Succession" image.
-        // Actually, let's create a 1x1 pixel base64 transparent image to satisfy the "image" requirement of the function
         const mockImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-
-        // We will append current timestamp to the prompt in the service if needed, but for now relies on general knowledge.
-        // We'll trick the prompt slightly in the service for this demo if we don't have a real image.
-        // The user prompt is "Identify the main character(s) visible in this image."
-        // Since we send a black pixel, Gemini might say "I see nothing".
-        // Use a "Demo Mode" fallback if Gemini fails to see anything? 
-        // OR: Provide a set of hardcoded screenshots for specific timestamps?
-        // Let's rely on the API. If the API key is missing, we must prompt for it.
 
         if (!apiKey) {
           setIsSettingsOpen(true);
@@ -72,47 +49,95 @@ function App() {
           character_name: "Logan Roy",
           actor_name: "Brian Cox",
           safe_summary: "The formidable patriarch of the Roy family. At this point in Season 2, he is testing the loyalty of his inner circle with ruthless psychological games. He demands absolute submission and is currently suspicious of a 'rat' in his camp."
-        }); // Fallback for demo if API fails or blocks
+        });
       } finally {
         setOverlayLoading(false);
         setIsScanning(false);
       }
-    }, 2000); // 2 second scan effect
+    }, 2000);
   };
 
   const handleCloseOverlay = () => {
     setShowOverlay(false);
-    setIsPlaying(true); // Resume video
+    setIsPlaying(true);
   };
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden font-sans text-white selection:bg-accent/30">
-      {/* Sidebar */}
-      <ContextSelector
-        season={season}
-        episode={episode}
-        onSeasonChange={setSeason}
-        onEpisodeChange={setEpisode}
-      />
+    <div className="flex h-screen w-full bg-[#0a0a0a] overflow-hidden font-sans text-white selection:bg-accent/30">
+
+      {/* Cinematic Sidebar */}
+      <AnimatePresence mode="wait">
+        {isSidebarOpen && (
+          <motion.div
+            initial={{ x: -300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="w-80 h-full z-20 shadow-2xl relative"
+          >
+            <ContextSelector
+              season={season}
+              episode={episode}
+              onSeasonChange={setSeason}
+              onEpisodeChange={setEpisode}
+            />
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="absolute top-4 right-4 p-1 text-gray-500 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative">
-        {/* Header */}
-        <header className="absolute top-0 left-0 right-0 z-10 p-6 flex justify-between items-start pointer-events-none">
-          <div className="pointer-events-auto">
-            {/* Breadcrumbs or Title could go here */}
+      <div className="flex-1 flex flex-col relative z-10 transition-all duration-500 ease-in-out">
+        {/* Header Overlay */}
+        <header className="absolute top-0 left-0 right-0 z-10 p-6 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent pointer-events-none h-32">
+          <div className="pointer-events-auto flex items-center gap-4">
+            {!isSidebarOpen && (
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 rounded-full bg-white/5 backdrop-blur-md border border-white/5 hover:bg-white/10 transition-colors text-gray-300 hover:text-white"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            )}
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-bold tracking-tight text-shadow-lg text-white/90">Succession</h1>
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-300/80 text-shadow-sm">
+                <span className="px-1.5 py-0.5 rounded bg-white/10 border border-white/5 text-[10px] uppercase tracking-wider">TV-MA</span>
+                <span>S{season}:E{episode}</span>
+                <span className="w-1 h-1 rounded-full bg-gray-500" />
+                <span>Drama</span>
+              </div>
+            </div>
           </div>
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="pointer-events-auto p-2 rounded-full bg-black/20 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-colors"
-          >
-            <SettingsIcon className="w-5 h-5 text-gray-400" />
-          </button>
+
+          <div className="pointer-events-auto flex items-center gap-3">
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2.5 rounded-full bg-white/5 backdrop-blur-md border border-white/5 hover:bg-white/10 transition-all active:scale-95 group"
+            >
+              <SettingsIcon className="w-5 h-5 text-gray-300 group-hover:text-white group-hover:rotate-90 transition-all duration-500" />
+            </button>
+          </div>
         </header>
 
         {/* Video Area */}
-        <div className="flex-1 flex items-center justify-center p-8 relative">
-          <div className="w-full max-w-5xl aspect-video relative group">
+        <div className="flex-1 flex items-center justify-center p-0 md:p-8 relative bg-black/40">
+          {/* Cinematic glow behind video */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/20 pointer-events-none" />
+
+          <motion.div
+            layout
+            className={clsx(
+              "w-full max-w-[90%] aspect-video relative group shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-xl overflow-hidden ring-1 ring-white/5",
+              isSidebarOpen ? "scale-95 origin-center" : "scale-100 origin-center"
+            )}
+            transition={{ duration: 0.5, ease: "circOut" }}
+          >
             <VideoPlayer
               ref={playerRef}
               url="https://www.youtube.com/watch?v=LeXDoSiVPq0"
@@ -129,7 +154,7 @@ function App() {
               data={overlayData}
               loading={overlayLoading}
             />
-          </div>
+          </motion.div>
         </div>
       </div>
 

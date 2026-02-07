@@ -27,10 +27,13 @@ export default function RecallTrigger({ onClick, isScanning }: RecallTriggerProp
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={onClick}
-                        className="group flex items-center gap-3 px-6 py-4 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-white shadow-2xl hover:bg-white/20 transition-all cursor-pointer"
+                        className="group flex items-center gap-3 px-6 py-3.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 text-white shadow-2xl hover:bg-white/10 hover:border-white/25 transition-all cursor-pointer ring-1 ring-white/5"
                     >
-                        <Eye className="w-6 h-6 text-accent group-hover:text-white transition-colors" />
-                        <span className="font-medium tracking-wide">Who is that?</span>
+                        <div className="relative">
+                            <Eye className="w-5 h-5 text-white/90 group-hover:text-accent transition-colors" />
+                            <div className="absolute inset-0 bg-accent/20 blur-md rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                        </div>
+                        <span className="font-medium tracking-wide text-sm text-white/90">Identify</span>
                     </motion.button>
                 )}
             </AnimatePresence>

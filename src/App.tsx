@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Settings as SettingsIcon, Menu, X, Mic } from 'lucide-react';
+import { Settings as SettingsIcon, Menu, X, Mic, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import VideoPlayer, { type VideoPlayerHandle } from './components/VideoPlayer';
 import ContextSelector from './components/ContextSelector';
@@ -169,6 +169,19 @@ function App() {
               url="https://www.youtube.com/watch?v=LeXDoSiVPq0"
               playing={isPlaying}
             />
+
+            {!isPlaying && !isScanning && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-20">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsPlaying(true)}
+                  className="p-6 rounded-full bg-white/10 border border-white/20 backdrop-blur-md shadow-2xl hover:bg-white/20 hover:border-white/40 transition-all group"
+                >
+                  <Play className="w-12 h-12 text-white fill-white pl-1 opacity-90 group-hover:opacity-100" />
+                </motion.button>
+              </div>
+            )}
 
             {/* Overlay Trigger */}
             <RecallTrigger onClick={handleRecall} isScanning={isScanning} />

@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Settings as SettingsIcon, Menu, X } from 'lucide-react';
+import { Settings as SettingsIcon, Menu, X, Mic } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import VideoPlayer, { type VideoPlayerHandle } from './components/VideoPlayer';
 import ContextSelector from './components/ContextSelector';
@@ -7,6 +7,7 @@ import RecallTrigger from './components/RecallTrigger';
 import ResultOverlay from './components/ResultOverlay';
 import SettingsModal from './components/SettingsModal';
 import { analyzeScene } from './services/gemini';
+import { useVoiceControl } from './hooks/useVoiceControl';
 import clsx from 'clsx';
 
 function App() {
@@ -20,11 +21,14 @@ function App() {
   const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || '');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isVoiceActive, setIsVoiceActive] = useState(true);
 
   const playerRef = useRef<VideoPlayerHandle>(null);
 
   const handleRecall = async () => {
-    setIsPlaying(false); // Pause video
+    if (isScanning) return;
+
+    setIsPlaying(false);
     setIsScanning(true);
     setOverlayLoading(true);
     setShowOverlay(true);
@@ -56,6 +60,15 @@ function App() {
       }
     }, 2000);
   };
+
+  const { error: voiceError } = useVoiceControl({
+    onTrigger: handleRecall,
+    isListening: isVoiceActive
+  });
+
+  if (voiceError) {
+    console.warn("Voice Control Error:", voiceError);
+  }
 
   const handleCloseOverlay = () => {
     setShowOverlay(false);
@@ -116,6 +129,19 @@ function App() {
           </div>
 
           <div className="pointer-events-auto flex items-center gap-3">
+            <button
+              onClick={() => setIsVoiceActive(!isVoiceActive)}
+              className={clsx(
+                "p-2.5 rounded-full backdrop-blur-md border transition-all active:scale-95 group relative",
+                isVoiceActive ? "bg-red-500/10 border-red-500/20 text-red-500" : "bg-white/5 border-white/5 text-gray-300"
+              )}
+              title={isVoiceActive ? "Listening for 'Recall'..." : "Voice Control Off"}
+            >
+              <Mic className={clsx("w-5 h-5", isVoiceActive && "animate-pulse")} />
+              {isVoiceActive && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-black animate-ping" />
+              )}
+            </button>
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="p-2.5 rounded-full bg-white/5 backdrop-blur-md border border-white/5 hover:bg-white/10 transition-all active:scale-95 group"

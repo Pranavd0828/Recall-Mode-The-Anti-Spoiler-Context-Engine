@@ -118,7 +118,7 @@ function App() {
               </button>
             )}
             <div className="flex flex-col">
-              <h1 className="text-2xl font-bold tracking-tight text-shadow-lg text-white/90">Succession</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-shadow-lg text-white/90">Succession (Demo Mode)</h1>
               <div className="flex items-center gap-2 text-sm font-medium text-gray-300/80 text-shadow-sm">
                 <span className="px-1.5 py-0.5 rounded bg-white/10 border border-white/5 text-[10px] uppercase tracking-wider">TV-MA</span>
                 <span>S{season}:E{episode}</span>
@@ -166,7 +166,7 @@ function App() {
           >
             <VideoPlayer
               ref={playerRef}
-              url="https://www.youtube.com/watch?v=OzY2r2JDBO0"
+              url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
               playing={isPlaying}
             />
 

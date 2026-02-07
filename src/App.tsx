@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
 import { Settings as SettingsIcon, Menu, X, Mic, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import VideoPlayer, { type VideoPlayerHandle } from './components/VideoPlayer';
 import ContextSelector from './components/ContextSelector';
 import RecallTrigger from './components/RecallTrigger';
 import ResultOverlay from './components/ResultOverlay';
@@ -24,7 +23,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isVoiceActive, setIsVoiceActive] = useState(true);
 
-  const playerRef = useRef<VideoPlayerHandle>(null);
+  const playerRef = useRef<HTMLVideoElement>(null);
 
   const handleRecall = async () => {
     if (isScanning) return;
@@ -35,10 +34,28 @@ function App() {
     setShowOverlay(true);
     setOverlayData(null);
 
+    // Capture Frame
+    const videoElement = playerRef.current as unknown as HTMLVideoElement;
+    let imagePayload = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+    if (videoElement) {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+          imagePayload = canvas.toDataURL("image/jpeg", 0.8);
+        }
+      } catch (e) {
+        console.error("Frame capture failed (CORS?)", e);
+      }
+    }
+
+    // Artificial delay for "scanning" effect
     setTimeout(async () => {
       try {
-        const mockImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-
         if (!apiKey) {
           setIsSettingsOpen(true);
           setIsScanning(false);
@@ -46,20 +63,20 @@ function App() {
           return;
         }
 
-        const data = await analyzeScene(apiKey, mockImage, season, episode);
+        const data = await analyzeScene(apiKey, imagePayload, season, episode);
         setOverlayData(data);
       } catch (error) {
         console.error("Analysis failed", error);
         setOverlayData({
-          character_name: "Logan Roy",
-          actor_name: "Brian Cox",
-          safe_summary: "The formidable patriarch of the Roy family. At this point in Season 2, he is testing the loyalty of his inner circle with ruthless psychological games. He demands absolute submission and is currently suspicious of a 'rat' in his camp."
+          character_name: "Analysis Failed",
+          actor_name: "Unknown",
+          safe_summary: "Could not identify the character. This might be due to a blurred image or network issue. Please try again."
         });
       } finally {
         setOverlayLoading(false);
         setIsScanning(false);
       }
-    }, 2000);
+    }, 1500);
   };
 
   const { error: voiceError } = useVoiceControl({
@@ -170,6 +187,7 @@ function App() {
               ref={playerRef as any}
               className="w-full h-full object-cover"
               src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
+              crossOrigin="anonymous"
               loop
               playsInline
               onClick={() => setIsPlaying(!isPlaying)}

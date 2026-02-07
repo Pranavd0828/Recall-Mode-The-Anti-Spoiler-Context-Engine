@@ -8,6 +8,7 @@ import ResultOverlay from './components/ResultOverlay';
 import SettingsModal from './components/SettingsModal';
 import { analyzeScene } from './services/gemini';
 import { useVoiceControl } from './hooks/useVoiceControl';
+import { EffectBridge } from './components/EffectBridge';
 import clsx from 'clsx';
 
 function App() {
@@ -164,11 +165,18 @@ function App() {
             )}
             transition={{ duration: 0.5, ease: "circOut" }}
           >
-            <VideoPlayer
-              ref={playerRef}
-              url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
-              playing={isPlaying}
+            {/* Native Video Fallback */}
+            <video
+              ref={playerRef as any}
+              className="w-full h-full object-cover"
+              src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
+              loop
+              playsInline
+              onClick={() => setIsPlaying(!isPlaying)}
             />
+
+            {/* Sync state with effect since we lost the declarative prop */}
+            <EffectBridge isPlaying={isPlaying} playerRef={playerRef} />
 
             {!isPlaying && !isScanning && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-20">

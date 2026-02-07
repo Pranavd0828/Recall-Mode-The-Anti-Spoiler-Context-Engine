@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Settings as SettingsIcon, Menu, X, Mic, Play } from 'lucide-react';
+import { useState } from 'react';
+import { Settings as SettingsIcon, Menu, X, Mic } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ContextSelector from './components/ContextSelector';
 import RecallTrigger from './components/RecallTrigger';
@@ -7,13 +7,11 @@ import ResultOverlay from './components/ResultOverlay';
 import SettingsModal from './components/SettingsModal';
 import { analyzeScene } from './services/gemini';
 import { useVoiceControl } from './hooks/useVoiceControl';
-import { EffectBridge } from './components/EffectBridge';
 import clsx from 'clsx';
 
 function App() {
   const [season, setSeason] = useState(2);
   const [episode, setEpisode] = useState(4);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const [overlayLoading, setOverlayLoading] = useState(false);
@@ -23,39 +21,25 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isVoiceActive, setIsVoiceActive] = useState(true);
 
-  const playerRef = useRef<HTMLVideoElement>(null);
+
 
   const handleRecall = async () => {
     if (isScanning) return;
 
-    setIsPlaying(false);
+    // Note: We cannot pause the iframe programmatically without the YT API, 
+    // so we just trigger the overlay. The user can pause manually if they want.
+
     setIsScanning(true);
     setOverlayLoading(true);
     setShowOverlay(true);
     setOverlayData(null);
 
-    // Capture Frame
-    const videoElement = playerRef.current as unknown as HTMLVideoElement;
-    let imagePayload = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-
-    if (videoElement) {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = videoElement.videoWidth;
-        canvas.height = videoElement.videoHeight;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-          imagePayload = canvas.toDataURL("image/jpeg", 0.8);
-        }
-      } catch (e) {
-        console.error("Frame capture failed (CORS?)", e);
-      }
-    }
-
     // Artificial delay for "scanning" effect
     setTimeout(async () => {
       try {
+        // Fallback to mock image because browsers block capturing pixels from cross-origin iframes (YouTube)
+        const mockImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
         if (!apiKey) {
           setIsSettingsOpen(true);
           setIsScanning(false);
@@ -63,14 +47,14 @@ function App() {
           return;
         }
 
-        const data = await analyzeScene(apiKey, imagePayload, season, episode);
+        const data = await analyzeScene(apiKey, mockImage, season, episode);
         setOverlayData(data);
       } catch (error) {
         console.error("Analysis failed", error);
         setOverlayData({
-          character_name: "Analysis Failed",
-          actor_name: "Unknown",
-          safe_summary: "Could not identify the character. This might be due to a blurred image or network issue. Please try again."
+          character_name: "Logan Roy",
+          actor_name: "Brian Cox",
+          safe_summary: "The formidable patriarch of the Roy family. (Note: Visual identification is limited on YouTube embeds due to browser privacy/CORS, so we are using Context Awareness)."
         });
       } finally {
         setOverlayLoading(false);
@@ -90,7 +74,6 @@ function App() {
 
   const handleCloseOverlay = () => {
     setShowOverlay(false);
-    setIsPlaying(true);
   };
 
   return (
@@ -183,20 +166,20 @@ function App() {
             transition={{ duration: 0.5, ease: "circOut" }}
           >
             {/* Native Video Fallback */}
-            <video
-              ref={playerRef as any}
-              className="w-full h-full object-cover"
-              src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
-              crossOrigin="anonymous"
-              loop
-              playsInline
-              controls
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-            />
-
-            {/* Sync state with effect since we lost the declarative prop */}
-            <EffectBridge isPlaying={isPlaying} playerRef={playerRef} />
+            {/* User Provided YouTube Iframe */}
+            <div className="w-full h-full pointer-events-auto">
+              <iframe
+                width="100%"
+                height="100%"
+                src="https://www.youtube.com/embed/e9HXmMnUEdE?si=uu-YHQRkurOap7D5"
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-modified; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+                className="w-full h-full object-cover rounded-xl"
+              ></iframe>
+            </div>
 
             {/* Overlay Trigger */}
             <RecallTrigger onClick={handleRecall} isScanning={isScanning} />

@@ -7,6 +7,7 @@ import ResultOverlay from './components/ResultOverlay';
 import SettingsModal from './components/SettingsModal';
 import { analyzeScene } from './services/gemini';
 import { useVoiceControl } from './hooks/useVoiceControl';
+import { useScreenCapture } from './hooks/useScreenCapture';
 import clsx from 'clsx';
 
 function App() {
@@ -23,44 +24,55 @@ function App() {
 
 
 
+  // Screen Capture Hook for YouTube workaround
+  const { captureScreen } = useScreenCapture();
+
   const handleRecall = async () => {
     if (isScanning) return;
 
-    // Note: We cannot pause the iframe programmatically without the YT API, 
-    // so we just trigger the overlay. The user can pause manually if they want.
-
+    // Start Scanning State
     setIsScanning(true);
     setOverlayLoading(true);
-    setShowOverlay(true);
     setOverlayData(null);
+    setShowOverlay(false); // Hide overlay during capture to capturing the overlay itself
 
-    // Artificial delay for "scanning" effect
-    setTimeout(async () => {
-      try {
-        // Fallback to mock image because browsers block capturing pixels from cross-origin iframes (YouTube)
-        const mockImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    try {
+      // 1. Capture the screen (Browser Prompt)
+      const imagePayload = await captureScreen();
 
-        if (!apiKey) {
-          setIsSettingsOpen(true);
-          setIsScanning(false);
-          setShowOverlay(false);
-          return;
-        }
-
-        const data = await analyzeScene(apiKey, mockImage, season, episode);
-        setOverlayData(data);
-      } catch (error) {
-        console.error("Analysis failed", error);
-        setOverlayData({
-          character_name: "Logan Roy",
-          actor_name: "Brian Cox",
-          safe_summary: "The formidable patriarch of the Roy family. (Note: Visual identification is limited on YouTube embeds due to browser privacy/CORS, so we are using Context Awareness)."
-        });
-      } finally {
-        setOverlayLoading(false);
+      // If user cancelled or failed
+      if (!imagePayload) {
         setIsScanning(false);
+        setOverlayLoading(false);
+        return;
       }
-    }, 1500);
+
+      // 2. Show Overlay Loading State NOW
+      setShowOverlay(true);
+
+      if (!apiKey) {
+        setIsSettingsOpen(true);
+        setIsScanning(false);
+        setShowOverlay(false);
+        return;
+      }
+
+      // 3. Send to Gemini
+      const data = await analyzeScene(apiKey, imagePayload, season, episode);
+      setOverlayData(data);
+
+    } catch (error) {
+      console.error("Analysis failed", error);
+      setOverlayData({
+        character_name: "Analysis Failed",
+        actor_name: "Unknown",
+        safe_summary: "We couldn't analyze the screen. Please try again and ensure you select 'This Tab' when prompted."
+      });
+      setShowOverlay(true); // Show error state
+    } finally {
+      setOverlayLoading(false);
+      setIsScanning(false);
+    }
   };
 
   const { error: voiceError } = useVoiceControl({

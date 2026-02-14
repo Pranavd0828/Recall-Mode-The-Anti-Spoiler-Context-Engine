@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Settings as SettingsIcon, Menu, X, Mic } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ContextSelector from './components/ContextSelector';
 import RecallTrigger from './components/RecallTrigger';
 import ResultOverlay from './components/ResultOverlay';
+import ScannerOverlay from './components/ScannerOverlay';
 import SettingsModal from './components/SettingsModal';
+import VideoPlayer, { type VideoPlayerHandle } from './components/VideoPlayer';
 import { analyzeScene } from './services/gemini';
 import { useVoiceControl } from './hooks/useVoiceControl';
 import { useScreenCapture } from './hooks/useScreenCapture';
@@ -22,13 +24,18 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isVoiceActive, setIsVoiceActive] = useState(true);
 
-
+  // Video State
+  const [playing, setPlaying] = useState(false);
+  const playerRef = useRef<VideoPlayerHandle>(null);
 
   // Screen Capture Hook for YouTube workaround
   const { captureScreen } = useScreenCapture();
 
   const handleRecall = async () => {
     if (isScanning) return;
+
+    // Auto-pause video
+    setPlaying(false);
 
     // Start Scanning State
     setIsScanning(true);
@@ -86,7 +93,28 @@ function App() {
 
   const handleCloseOverlay = () => {
     setShowOverlay(false);
+    // Optionally auto-resume? Maybe better to let user resume manually.
   };
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.key.toLowerCase() === 'r') {
+        handleRecall();
+      }
+      if (e.key === 'Escape') {
+        handleCloseOverlay();
+        setIsSettingsOpen(false);
+        setIsSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isScanning, season, episode, apiKey]); // Dependencies for handleRecall
 
   return (
     <div className="flex h-screen w-full bg-[#0a0a0a] overflow-hidden font-sans text-white selection:bg-accent/30">
@@ -120,7 +148,7 @@ function App() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col relative z-10 transition-all duration-500 ease-in-out">
         {/* Header Overlay */}
-        <header className="absolute top-0 left-0 right-0 z-10 p-6 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent pointer-events-none h-32">
+        <header className="absolute top-0 left-0 right-0 z-10 p-6 flex justify-between items-center pointer-events-none h-32">
           <div className="pointer-events-auto flex items-center gap-4">
             {!isSidebarOpen && (
               <button
@@ -177,21 +205,17 @@ function App() {
             )}
             transition={{ duration: 0.5, ease: "circOut" }}
           >
-            {/* Native Video Fallback */}
-            {/* User Provided YouTube Iframe */}
-            <div className="w-full h-full pointer-events-auto">
-              <iframe
-                width="100%"
-                height="100%"
-                src="https://www.youtube.com/embed/e9HXmMnUEdE?si=uu-YHQRkurOap7D5"
-                title="YouTube video player"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-modified; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-                className="w-full h-full object-cover rounded-xl"
-              ></iframe>
-            </div>
+            {/* Custom Video Player */}
+            <VideoPlayer
+              ref={playerRef}
+              url="https://www.youtube.com/embed/e9HXmMnUEdE?si=uu-YHQRkurOap7D5"
+              playing={playing}
+              onPlayPause={setPlaying}
+              className="w-full h-full pointer-events-auto"
+            />
+
+            {/* Visual Scanner Overlay */}
+            <ScannerOverlay isScanning={overlayLoading} />
 
             {/* Overlay Trigger */}
             <RecallTrigger onClick={handleRecall} isScanning={isScanning} />
@@ -202,6 +226,7 @@ function App() {
               onClose={handleCloseOverlay}
               data={overlayData}
               loading={overlayLoading}
+              season={season}
             />
           </motion.div>
         </div>

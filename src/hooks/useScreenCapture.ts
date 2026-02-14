@@ -16,25 +16,34 @@ export const useScreenCapture = () => {
                 audio: false,
             });
 
-            const videoTrack = stream.getVideoTracks()[0];
-            // @ts-ignore
-            const imageCapture = new ImageCapture(videoTrack) as any;
+            // Standard approach: Play stream in a hidden video element and draw to canvas
+            const video = document.createElement('video');
+            video.srcObject = stream;
 
-            // Grab a frame
-            const bitmap = await imageCapture.grabFrame() as ImageBitmap;
+            // Wait for video to be ready
+            await new Promise((resolve) => {
+                video.onloadedmetadata = () => {
+                    video.play().then(resolve);
+                };
+            });
 
-            // Stop the stream immediately after capture to stop the "Sharing" indicator
-            videoTrack.stop();
-
-            // Convert bitmap to base64
+            // Create canvas and draw frame
             const canvas = document.createElement('canvas');
-            canvas.width = bitmap.width;
-            canvas.height = bitmap.height;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
 
-            if (!ctx) throw new Error("Could not get canvas context");
+            if (!ctx) {
+                stream.getTracks().forEach(track => track.stop());
+                throw new Error("Could not get canvas context");
+            }
 
-            ctx.drawImage(bitmap, 0, 0);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Cleanup
+            stream.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+
             return canvas.toDataURL('image/jpeg', 0.8);
 
         } catch (err) {
